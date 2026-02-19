@@ -7,7 +7,7 @@ from world import World
 np.random.seed(42)  # For reproducibility
 
 class ValueIteration:
-    def __init__(self, world, gamma=0.95, tolerance=1e-6, max_iterations=1000):
+    def __init__(self, world, gamma=0.95, tolerance=1e-6, max_iterations=1000, reward_values=[100,-50,-1]):
         """
         Initialize Value Iteration algorithm
         
@@ -22,6 +22,7 @@ class ValueIteration:
         self.tolerance = tolerance
         self.max_iterations = max_iterations
         self.size = world.size
+        self.reward_values = reward_values
         
         # Initialize value function
         self.values = np.zeros((self.size, self.size))
@@ -34,17 +35,17 @@ class ValueIteration:
         
     def set_rewards(self):
         """Set reward values for different cell types"""
-        self.rewards = np.ones((self.size, self.size)) * (-5)  # Step cost of -1
+        self.rewards = np.ones((self.size, self.size)) * (self.reward_values[2])  # Step cost of -1
         
         # Set goal reward
         goal_pos = self.world.get_goal()
-        self.rewards[goal_pos] = 1000
+        self.rewards[goal_pos] = self.reward_values[0] 
         
         # Set sinkhole rewards
         sinkhole_positions = np.where(self.world.grid == -1)
         for i in range(len(sinkhole_positions[0])):
             x, y = sinkhole_positions[0][i], sinkhole_positions[1][i]
-            self.rewards[x, y] = -1000
+            self.rewards[x, y] = self.reward_values[1]
         
         # Walls have no reward (inaccessible)
         wall_positions = np.where(self.world.grid == 0)
@@ -172,7 +173,7 @@ class ValueIteration:
         
         return policy
     
-    def plot_values(self):
+    def get_fig(self):
         """Plot the value function"""
         fig, ax = plt.subplots(figsize=(10, 10))
         
@@ -229,14 +230,15 @@ class ValueIteration:
         # Add colorbar
         cbar = plt.colorbar(im, ax=ax, shrink=0.8)
         cbar.set_label('Value', rotation=270, labelpad=15)
-        
-        plt.title('Value Function (Goal: 100, Sinkholes: -50, Step Cost: -1)')
-        plt.xlabel('Y coordinate')
-        plt.ylabel('X coordinate')
+
         plt.tight_layout()
+
+        return fig
+
+    def plot_values(self):
+        fig = self.get_fig()
         plt.show()
-
-
+    
 def run_value_iteration_example():
     """Run value iteration on a sample world"""
     print("Creating world...")
