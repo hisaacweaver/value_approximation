@@ -15,7 +15,7 @@ class World:
         self.generate_sinkholes()
         self.goal = np.unravel_index(np.random.choice(self.size * self.size, 1), self.grid.shape)
         self.grid[self.goal] = 1
-        self.agent = np.unravel_index(np.random.choice(self.size * self.size, 1) - 50, self.grid.shape)
+        self.agent = np.unravel_index(np.random.choice(self.size * self.size, 1), self.grid.shape)
 
     def generate_walls(self):
         num_walls = int(self.size * self.size * self.pct_walls)
@@ -105,6 +105,10 @@ class World:
         return state
     
     def is_wall(self, pos):
+        x, y = pos
+        # Check bounds first
+        if x < 0 or x >= self.size or y < 0 or y >= self.size:
+            return True  # Out of bounds is treated as a wall
         return self.grid[pos] == 0
 
     def get_goal(self):
