@@ -3,12 +3,14 @@ from world import World
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 from matplotlib.patches import Rectangle
+import time
 
 
 class ApproximateValueIteration:
     def __init__(self, world, pct_anchors=0.1,gamma=0.95, tolerance=1e-4, max_iterations=1000):
         self.world = world
-        num_anchors = max(1, world.size * world.size * pct_anchors)
+        traversable_count = int(np.sum(world.grid != 0))
+        target_anchor_count = max(1, int(round(traversable_count * pct_anchors)))
         self.gamma = gamma
         self.tolerance = tolerance
         self.max_iterations = max_iterations
@@ -21,26 +23,37 @@ class ApproximateValueIteration:
         for x, y in zip(*np.where(self.world.grid == -1)): self.rewards[x, y] = -50
         for x, y in zip(*np.where(self.world.grid == 0)): self.rewards[x, y] = 0
 
-        self.anchors = self._generate_anchors(num_anchors)
+        self.anchors = self._generate_anchors(target_anchor_count)
         self.theta = np.zeros(len(self.anchors))
 
-    def _generate_anchors(self, num_anchors):
-            anchors = []
-            step = max(1, int(self.size / np.sqrt(num_anchors)))
-            for x in range(0, self.size, step):
-                for y in range(0, self.size, step):
-                    if self.world.grid[x, y] != 0: anchors.append((x, y))
-            
-            # Ensure goal is an anchor
+    def _generate_anchors(self, target_anchor_count):
+            traversable = [tuple(pos) for pos in np.argwhere(self.world.grid != 0)]
+            target_anchor_count = min(len(traversable), max(1, int(target_anchor_count)))
+
             goal = self.world.get_goal()
-            if goal not in anchors: anchors.append(goal)
-            
-            # Ensure ALL sinkholes are anchors so we don't accidentally smooth over them
-            sinkholes = np.argwhere(self.world.grid == -1)
-            for sh in sinkholes:
-                sh_tuple = tuple(sh)
-                if sh_tuple not in anchors: anchors.append(sh_tuple)
-                
+            sinkholes = [tuple(pos) for pos in np.argwhere(self.world.grid == -1)]
+
+            required_anchors = []
+            seen = set()
+            for anchor in [goal] + sinkholes:
+                if anchor not in seen:
+                    required_anchors.append(anchor)
+                    seen.add(anchor)
+
+            if len(required_anchors) >= target_anchor_count:
+                return required_anchors
+
+            anchors = required_anchors.copy()
+            optional_pool = [candidate for candidate in traversable if candidate not in seen]
+            additional_needed = target_anchor_count - len(anchors)
+
+            if additional_needed >= len(optional_pool):
+                return anchors + optional_pool
+
+            sampled_indices = np.random.choice(len(optional_pool), size=additional_needed, replace=False)
+            for idx in sampled_indices:
+                anchors.append(optional_pool[idx])
+
             return anchors
 
     def get_approx_value(self, state):
@@ -50,6 +63,7 @@ class ApproximateValueIteration:
 
     def run(self):
         # Algorithm 8.1 Loop
+        start_time = time.time()
         for iteration in range(self.max_iterations):
             new_theta = np.copy(self.theta)
             max_change = 0
@@ -70,7 +84,13 @@ class ApproximateValueIteration:
                 max_change = max(max_change, abs(new_theta[i] - self.theta[i]))
             
             self.theta = new_theta
-            if max_change < self.tolerance: break
+            if max_change < self.tolerance:
+                self.iterations_to_converge = iteration + 1
+                self.computation_time = time.time() - start_time
+                break
+        else:
+            self.iterations_to_converge = self.max_iterations
+            self.computation_time = time.time() - start_time
         
         sparse_U = np.zeros((self.size, self.size))
         for idx, (x, y) in enumerate(self.anchors):
@@ -225,5 +245,6 @@ if __name__ == "__main__":
 
     print("\nPlotting results...")
     # Use the new class method format to match exact_value.py
+    avi.plot_values(sparse_U)
     avi.plot_values(nearest_grid)
     avi.plot_values(linear_grid)
