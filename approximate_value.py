@@ -1,0 +1,163 @@
+import numpy as np
+from world import World
+import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
+from matplotlib.patches import Rectangle
+
+
+class ApproximateValueIteration:
+    def __init__(self, world, pct_anchors=0.1,gamma=0.95, tolerance=1e-4, max_iterations=1000):
+        self.world = world
+        num_anchors = max(1, world.size * world.size * pct_anchors)
+        self.gamma = gamma
+        self.tolerance = tolerance
+        self.max_iterations = max_iterations
+        self.size = world.size
+        
+        # 1. Setup Rewards
+        self.rewards = np.ones((self.size, self.size)) * (-1)
+        self.rewards[self.world.get_goal()] = 100
+        # Handle sinkholes/walls
+        for x, y in zip(*np.where(self.world.grid == -1)): self.rewards[x, y] = -50
+        for x, y in zip(*np.where(self.world.grid == 0)): self.rewards[x, y] = 0
+
+        self.anchors = self._generate_anchors(num_anchors)
+        self.theta = np.zeros(len(self.anchors))
+
+    def _generate_anchors(self, num_anchors):
+            anchors = []
+            step = max(1, int(self.size / np.sqrt(num_anchors)))
+            for x in range(0, self.size, step):
+                for y in range(0, self.size, step):
+                    if self.world.grid[x, y] != 0: anchors.append((x, y))
+            
+            # Ensure goal is an anchor
+            goal = self.world.get_goal()
+            if goal not in anchors: anchors.append(goal)
+            
+            # Ensure ALL sinkholes are anchors so we don't accidentally smooth over them
+            sinkholes = np.argwhere(self.world.grid == -1)
+            for sh in sinkholes:
+                sh_tuple = tuple(sh)
+                if sh_tuple not in anchors: anchors.append(sh_tuple)
+                
+            return anchors
+
+    def get_approx_value(self, state):
+        # We still need this to CALCULATE the updates, even if we return a sparse matrix later
+        dists = np.sum((np.array(self.anchors) - np.array(state))**2, axis=1)
+        return self.theta[np.argmin(dists)]
+
+    def run(self):
+        # Algorithm 8.1 Loop
+        for iteration in range(self.max_iterations):
+            new_theta = np.copy(self.theta)
+            max_change = 0
+            
+            for i, (x, y) in enumerate(self.anchors):
+                if self.world.grid[x, y] == -1 or (x, y) == self.world.get_goal():
+                    new_theta[i] = self.rewards[x, y]
+                    continue
+                
+                # Bellman Backup
+                q_values = []
+                for action in range(4):
+                    next_s = self.world.transition(action, (x, y))
+                    v_next = self.get_approx_value(next_s)
+                    q_values.append(self.rewards[x, y] + self.gamma * v_next)
+                
+                new_theta[i] = max(q_values)
+                max_change = max(max_change, abs(new_theta[i] - self.theta[i]))
+            
+            self.theta = new_theta
+            if max_change < self.tolerance: break
+        
+        sparse_U = np.zeros((self.size, self.size))
+        for idx, (x, y) in enumerate(self.anchors):
+            sparse_U[x, y] = self.theta[idx]
+            
+        return sparse_U
+
+def plot_reconstructed_values(world, grid_values, title):
+    fig, ax = plt.subplots(figsize=(10, 10))
+    
+    plot_values = np.copy(grid_values)
+    
+    wall_positions = np.where(world.grid == 0)
+    for i in range(len(wall_positions[0])):
+        x, y = wall_positions[0][i], wall_positions[1][i]
+        plot_values[x, y] = np.nan
+    
+    im = ax.imshow(plot_values, cmap='RdYlBu', interpolation='nearest')
+    
+    for x in range(world.size):
+        for y in range(world.size):
+            if not np.isnan(plot_values[x, y]):
+                text = ax.text(y, x, f'{grid_values[x, y]:.1f}',
+                               ha="center", va="center", color="black", fontsize=8)
+    
+    for i in range(len(wall_positions[0])):
+        x, y = wall_positions[0][i], wall_positions[1][i]
+        rect = Rectangle((y-0.5, x-0.5), 1, 1, facecolor='black', edgecolor='gray', linewidth=0.5)
+        ax.add_patch(rect)
+    
+    goal_pos = world.get_goal()
+    rect = Rectangle((goal_pos[1]-0.5, goal_pos[0]-0.5), 1, 1, 
+                     facecolor='none', edgecolor='green', linewidth=3)
+    ax.add_patch(rect)
+    
+    sinkhole_positions = np.where(world.grid == -1)
+    for i in range(len(sinkhole_positions[0])):
+        x, y = sinkhole_positions[0][i], sinkhole_positions[1][i]
+        rect = Rectangle((y-0.5, x-0.5), 1, 1, 
+                         facecolor='none', edgecolor='red', linewidth=3)
+        ax.add_patch(rect)
+    
+    ax.set_xlim(-0.5, world.size-0.5)
+    ax.set_ylim(-0.5, world.size-0.5)
+    ax.set_aspect('equal')
+    ax.invert_yaxis()
+    
+    ax.set_xticks(np.arange(-0.5, world.size, 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, world.size, 1), minor=True)
+    ax.grid(which='minor', color='gray', linestyle='-', linewidth=0.5, alpha=0.3)
+    
+    cbar = plt.colorbar(im, ax=ax, shrink=0.8)
+    cbar.set_label('Value', rotation=270, labelpad=15)
+    
+    plt.title(title)
+    plt.xlabel('Y coordinate')
+    plt.ylabel('X coordinate')
+    plt.tight_layout()
+    plt.show()
+
+def reconstruct_grid(sparse_U, world_size, method='nearest'):
+    anchor_rows, anchor_cols = np.nonzero(sparse_U)
+    anchor_points = np.column_stack((anchor_rows, anchor_cols))
+    anchor_values = sparse_U[anchor_rows, anchor_cols]
+    
+    grid_x, grid_y = np.mgrid[0:world_size, 0:world_size]
+    
+    full_grid = griddata(
+        anchor_points, 
+        anchor_values, 
+        (grid_x, grid_y), 
+        method=method,
+        fill_value=np.min(anchor_values) 
+    )
+    
+    return full_grid
+
+if __name__ == "__main__":
+    print("Creating world...")
+    world = World(size=10, pct_walls=0.15, pct_holes=0.08) 
+    
+    avi = ApproximateValueIteration(world, pct_anchors=0.50, gamma=0.8, tolerance=1e-6)
+    sparse_U = avi.run()
+
+    nearest_grid = reconstruct_grid(sparse_U, world.size, method='nearest')
+    linear_grid  = reconstruct_grid(sparse_U, world.size, method='linear')
+
+    print("\nPlotting results...")
+    plot_reconstructed_values(world, nearest_grid, "Nearest Neighbor Reconstruction (Section 8.2)")
+    plot_reconstructed_values(world, linear_grid, "Multilinear Reconstruction (Section 8.4)")

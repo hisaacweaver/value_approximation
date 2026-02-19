@@ -3,7 +3,7 @@ from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 
-# np.random.seed(42)  # For reproducibility
+np.random.seed(42)  # For reproducibility
 
 class World:
     def __init__(self, size, pct_walls=0.15, pct_holes=0.01):
