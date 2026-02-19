@@ -78,7 +78,75 @@ class ApproximateValueIteration:
             
         return sparse_U
 
+    def get_fig(self, grid_values):
+        """Plot the value function"""
+        fig, ax = plt.subplots(figsize=(10, 10))
+        
+        # Create a copy of values for visualization
+        plot_values = np.copy(grid_values)
+        
+        # Set wall values to NaN for better visualization
+        wall_positions = np.where(self.world.grid == 0)
+        for i in range(len(wall_positions[0])):
+            x, y = wall_positions[0][i], wall_positions[1][i]
+            plot_values[x, y] = np.nan
+        
+        # Plot values as heatmap
+        im = ax.imshow(plot_values, cmap='RdYlBu', interpolation='nearest')
+        
+        # Add text annotations
+        for x in range(self.size):
+            for y in range(self.size):
+                if not np.isnan(plot_values[x, y]):
+                    text = ax.text(y, x, f'{grid_values[x, y]:.1f}',
+                                 ha="center", va="center", color="black", fontsize=8)
+        
+        # Plot walls as black squares
+        wall_positions = np.where(self.world.grid == 0)
+        for i in range(len(wall_positions[0])):
+            x, y = wall_positions[0][i], wall_positions[1][i]
+            rect = Rectangle((y-0.5, x-0.5), 1, 1, facecolor='black', edgecolor='gray', linewidth=0.5)
+            ax.add_patch(rect)
+        
+        # Highlight goal and sinkholes
+        goal_pos = self.world.get_goal()
+        rect = Rectangle((goal_pos[1]-0.5, goal_pos[0]-0.5), 1, 1, 
+                        facecolor='none', edgecolor='green', linewidth=3)
+        ax.add_patch(rect)
+        
+        sinkhole_positions = np.where(self.world.grid == -1)
+        for i in range(len(sinkhole_positions[0])):
+            x, y = sinkhole_positions[0][i], sinkhole_positions[1][i]
+            rect = Rectangle((y-0.5, x-0.5), 1, 1, 
+                           facecolor='none', edgecolor='red', linewidth=3)
+            ax.add_patch(rect)
+        
+        # Set up the plot
+        ax.set_xlim(-0.5, self.size-0.5)
+        ax.set_ylim(-0.5, self.size-0.5)
+        ax.set_aspect('equal')
+        ax.invert_yaxis()
+        
+        # Add grid
+        ax.set_xticks(np.arange(-0.5, self.size, 1), minor=True)
+        ax.set_yticks(np.arange(-0.5, self.size, 1), minor=True)
+        ax.grid(which='minor', color='gray', linestyle='-', linewidth=0.5, alpha=0.3)
+        
+        # Add colorbar
+        cbar = plt.colorbar(im, ax=ax, shrink=0.8)
+        cbar.set_label('Value', rotation=270, labelpad=15)
+
+        plt.tight_layout()
+
+        return fig
+
+    def plot_values(self, grid_values):
+        fig = self.get_fig(grid_values)
+        plt.show()
+
+
 def plot_reconstructed_values(world, grid_values, title):
+    # This function is kept for backwards compatibility but now uses the class method approach
     fig, ax = plt.subplots(figsize=(10, 10))
     
     plot_values = np.copy(grid_values)
@@ -125,9 +193,6 @@ def plot_reconstructed_values(world, grid_values, title):
     cbar = plt.colorbar(im, ax=ax, shrink=0.8)
     cbar.set_label('Value', rotation=270, labelpad=15)
     
-    plt.title(title)
-    plt.xlabel('Y coordinate')
-    plt.ylabel('X coordinate')
     plt.tight_layout()
     plt.show()
 
@@ -159,5 +224,6 @@ if __name__ == "__main__":
     linear_grid  = reconstruct_grid(sparse_U, world.size, method='linear')
 
     print("\nPlotting results...")
-    plot_reconstructed_values(world, nearest_grid, "Nearest Neighbor Reconstruction (Section 8.2)")
-    plot_reconstructed_values(world, linear_grid, "Multilinear Reconstruction (Section 8.4)")
+    # Use the new class method format to match exact_value.py
+    avi.plot_values(nearest_grid)
+    avi.plot_values(linear_grid)

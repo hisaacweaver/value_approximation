@@ -8,7 +8,7 @@ np.random.seed(42)  # For reproducibility
 st.set_page_config(page_title="Value Approximation Demo", layout="wide")
 
 st.title("Value Approximation Demo")
-
+st.header("By Benjamin Weaver and Isaac Weaver")
 
 
 world_cols = st.columns([1, 2, 1])
@@ -48,5 +48,4 @@ with value_cols[0]:
     col1, col2 = st.columns(2)
     col1.write(f"Grid size: {world.size}x{world.size} = {world.size**2} states")
     col1.write(f"Iterations to convergence: {value_iteration.iterations_to_converge}")
-    col2.write(f"Total computation time: {value_iteration.computation_time:.4f} seconds")
-    col2.write(f"States processed per second: {(world.size**2 * value_iteration.iterations_to_converge) / value_iteration.computation_time:.0f}")
+    col1.write(f"Total computation time: {value_iteration.computation_time:.4f} seconds")
