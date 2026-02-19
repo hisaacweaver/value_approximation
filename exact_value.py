@@ -67,7 +67,6 @@ class ValueIteration:
     
     def value_iteration(self):
         """Run value iteration algorithm"""
-        print("Starting value iteration...")
         start_time = time.time()
         
         for iteration in range(self.max_iterations):
@@ -115,9 +114,9 @@ class ValueIteration:
                 computation_time = end_time - start_time
                 iterations_to_converge = iteration + 1
                 
-                print(f"Converged after {iterations_to_converge} iterations")
-                print(f"Total computation time: {computation_time:.4f} seconds")
-                print(f"Time per iteration: {computation_time/iterations_to_converge:.4f} seconds")
+                # print(f"Converged after {iterations_to_converge} iterations")
+                # print(f"Total computation time: {computation_time:.4f} seconds")
+                # print(f"Time per iteration: {computation_time/iterations_to_converge:.4f} seconds")
                 
                 # Store metrics for later access
                 self.iterations_to_converge = iterations_to_converge
@@ -127,13 +126,13 @@ class ValueIteration:
                 
             if (iteration + 1) % 10 == 0:
                 elapsed_time = time.time() - start_time
-                print(f"Iteration {iteration + 1}, max change: {max_change:.6f}, elapsed time: {elapsed_time:.4f}s")
+                # print(f"Iteration {iteration + 1}, max change: {max_change:.6f}, elapsed time: {elapsed_time:.4f}s")
         
         # If we reach here, we didn't converge
         end_time = time.time()
         computation_time = end_time - start_time
-        print(f"Did not converge after {self.max_iterations} iterations")
-        print(f"Total computation time: {computation_time:.4f} seconds")
+        # print(f"Did not converge after {self.max_iterations} iterations")
+        # print(f"Total computation time: {computation_time:.4f} seconds")
         
         self.iterations_to_converge = self.max_iterations
         self.computation_time = computation_time
