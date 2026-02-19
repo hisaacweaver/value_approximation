@@ -15,7 +15,7 @@ class World:
         self.generate_sinkholes()
         self.goal = np.unravel_index(np.random.choice(self.size * self.size, 1), self.grid.shape)
         self.grid[self.goal] = 1
-        self.agent = np.unravel_index(np.random.choice(self.size * self.size, 1), self.grid.shape)
+        self.agent = np.unravel_index(np.random.choice(self.size * self.size, 1) - 50, self.grid.shape)
 
     def generate_walls(self):
         num_walls = int(self.size * self.size * self.pct_walls)
@@ -68,7 +68,10 @@ class World:
         # Add grid lines
         ax.set_xticks(range(self.size))
         ax.set_yticks(range(self.size))
-        ax.grid(True, alpha=0.3)
+        # Add minor ticks offset by 0.5 so grid lines sit on cell borders, then draw minor grid
+        ax.set_xticks(np.arange(-0.5, self.size, 1), minor=True)
+        ax.set_yticks(np.arange(-0.5, self.size, 1), minor=True)
+        ax.grid(which='minor', color='gray', linestyle='-', linewidth=0.5, alpha=0.3)
         
         # Create legend
         wall_patch = Patch(facecolor='black', edgecolor='gray', label='Wall')
@@ -113,5 +116,11 @@ class World:
     def goal_distance(self, state):
         return np.linalg.norm(np.array(state) - np.array(self.goal))
 
-w = World(size=10, pct_walls=0.1, pct_holes=0.05)
-w.render()
+    def move_agent(self, action):
+        new_position = self.transition(action, self.agent)
+        if new_position != self.agent:
+            self.agent = new_position
+
+if __name__ == "__main__":
+    w = World(size=10, pct_walls=0.1, pct_holes=0.05)
+    w.render()
