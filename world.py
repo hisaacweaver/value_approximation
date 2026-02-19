@@ -33,6 +33,45 @@ class World:
                 self.grid[x, y] = -1
 
     def render(self, agent=False):
+        fig = self.get_fig(agent=agent)
+        plt.show()
+
+    def transition(self, action, state):
+        action_space = {
+            0: (0, 1),   # Up
+            1: (1, 0),   # Right
+            2: (0, -1),  # Down
+            3: (-1, 0)   # Left
+        }
+        dx, dy = action_space[action]
+        new_position = (state[0] + dy, state[1] + dx)
+        if not self.is_wall(new_position):
+            return new_position
+        return state
+    
+    def is_wall(self, pos):
+        x, y = pos
+        # Check bounds first
+        if x < 0 or x >= self.size or y < 0 or y >= self.size:
+            return True  # Out of bounds is treated as a wall
+        return self.grid[pos] == 0
+
+    def get_goal(self):
+        return self.goal
+
+    def get_agent(self):
+        return self.agent
+    
+    def goal_distance(self, state):
+        return np.linalg.norm(np.array(state) - np.array(self.goal))
+
+    def move_agent(self, action):
+        new_position = self.transition(action, self.agent)
+        if new_position != self.agent:
+            self.agent = new_position
+    
+    def get_fig(self, agent=False):
+
         # Create a figure and axis
         fig, ax = plt.subplots(figsize=(8, 8))
         
@@ -89,41 +128,7 @@ class World:
         
         plt.legend(handles=handles, loc='upper right')
         plt.title('World Environment')
-        plt.show()
-
-    def transition(self, action, state):
-        action_space = {
-            0: (0, 1),   # Up
-            1: (1, 0),   # Right
-            2: (0, -1),  # Down
-            3: (-1, 0)   # Left
-        }
-        dx, dy = action_space[action]
-        new_position = (state[0] + dy, state[1] + dx)
-        if not self.is_wall(new_position):
-            return new_position
-        return state
-    
-    def is_wall(self, pos):
-        x, y = pos
-        # Check bounds first
-        if x < 0 or x >= self.size or y < 0 or y >= self.size:
-            return True  # Out of bounds is treated as a wall
-        return self.grid[pos] == 0
-
-    def get_goal(self):
-        return self.goal
-
-    def get_agent(self):
-        return self.agent
-    
-    def goal_distance(self, state):
-        return np.linalg.norm(np.array(state) - np.array(self.goal))
-
-    def move_agent(self, action):
-        new_position = self.transition(action, self.agent)
-        if new_position != self.agent:
-            self.agent = new_position
+        return fig
 
 if __name__ == "__main__":
     w = World(size=10, pct_walls=0.1, pct_holes=0.05)
