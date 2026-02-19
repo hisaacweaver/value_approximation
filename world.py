@@ -3,7 +3,7 @@ from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 
-np.random.seed(42)  # For reproducibility
+# np.random.seed(42)  # For reproducibility
 
 class World:
     def __init__(self, size, pct_walls=0.15, pct_holes=0.01):
@@ -13,9 +13,9 @@ class World:
         self.pct_holes = pct_holes
         self.generate_walls()
         self.generate_sinkholes()
-        self.goal = np.unravel_index(np.random.choice(self.size * self.size, 1), self.grid.shape)
+        self.goal = np.unravel_index(np.random.choice(self.size * self.size), self.grid.shape)
         self.grid[self.goal] = 1
-        self.agent = np.unravel_index(np.random.choice(self.size * self.size, 1), self.grid.shape)
+        self.agent = np.unravel_index(np.random.choice(self.size * self.size), self.grid.shape)
 
     def generate_walls(self):
         num_walls = int(self.size * self.size * self.pct_walls)
